@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# PySpark / Delta
+spark-warehouse/
+derby.log
+metastore_db/
+*.parquet
+*.delta/
+_delta_log/
+
+# Output data (mantener assets/ de entrada, ignorar salidas generadas)
+output/
+data/output/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test/coverage
+.pytest_cache/
+.coverage
+htmlcov/
