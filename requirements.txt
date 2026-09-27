@@ -1,3 +1,4 @@
 pyspark==3.5.1
 delta-spark==3.2.0
+pydantic>=2.9,<3
 pytest==8.2.2
