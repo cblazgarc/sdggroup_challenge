@@ -16,9 +16,12 @@ metastore_db/
 *.delta/
 _delta_log/
 
-# Output data (mantener assets/ de entrada, ignorar salidas generadas)
+# Runtime data (mantener assets/ de entrada como fuente de verdad; data/ es
+# la copia de trabajo local -- input renombrado + outputs generados -- bajo
+# la raíz del proyecto: engine/paths.py reancla ahí cualquier config.path de
+# metadata.json que empiece por "/", sin necesitar junction ni ruta de C:\)
 output/
-data/output/
+data/
 
 # IDE
 .idea/

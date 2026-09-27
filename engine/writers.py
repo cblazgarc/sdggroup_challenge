@@ -4,6 +4,7 @@ from __future__ import annotations
 from pyspark.sql import DataFrame, SparkSession
 
 from engine.metadata_schema import FileOutputNode, OutputNode, TableOutputNode
+from engine.paths import resolve_project_path
 
 
 def write_output(spark: SparkSession, df: DataFrame, node: OutputNode, tables_base_path: str) -> None:
@@ -17,20 +18,31 @@ def write_output(spark: SparkSession, df: DataFrame, node: OutputNode, tables_ba
 
 
 def _write_file(df: DataFrame, node: FileOutputNode) -> None:
-    """type=file: plain `df.write` with the node's `format`/`save_mode` (+ optional partition)."""
+    """
+    type=file: plain `df.write` with the node's `format`/`save_mode` (+
+    optional partition). `config.path` is rebased under the project root
+    (see `engine.paths`) exactly like an input's `config.path` — this
+    matters because `parquet_data` (an input, elsewhere in the same
+    dataflow) reads from this very same path, so both must resolve
+    identically.
+    """
+    resolved_path = resolve_project_path(node.config.path)
     writer = df.write.format(node.config.format).mode(node.config.save_mode)
     if node.config.partition:
         writer = writer.partitionBy(node.config.partition)
-    writer.save(node.config.path)
+    writer.save(resolved_path)
 
 
 def resolve_table_path(tables_base_path: str, table_name: str) -> str:
     """
     `config.table` (type=table outputs) carries no path in metadata.json —
-    it is resolved against the engine's `tables_base_path` parameter
-    (CLI `--tables-base-path`, never hardcoded here): `{tables_base_path}/{table_name}`.
+    it is resolved against the engine's `tables_base_path` parameter (CLI
+    `--tables-base-path`, never hardcoded here): `{tables_base_path}/{table_name}`,
+    itself rebased under the project root (see `engine.paths`) the same way
+    as every other metadata.json-style path.
     """
-    return f"{tables_base_path.rstrip('/')}/{table_name}"
+    resolved_base_path = resolve_project_path(tables_base_path)
+    return f"{resolved_base_path.rstrip('/')}/{table_name}"
 
 
 def _write_table(spark: SparkSession, df: DataFrame, node: TableOutputNode, tables_base_path: str) -> None:

@@ -6,6 +6,7 @@ from typing import Any
 from pyspark.sql import DataFrame, SparkSession
 
 from engine.metadata_schema import FileInputNode
+from engine.paths import resolve_project_path
 from engine.templating import resolve_template
 
 
@@ -17,11 +18,14 @@ def read_input(spark: SparkSession, input_node: FileInputNode, template_context:
     passed straight to `DataFrameReader.format(...)`, so any format Spark
     understands (csv, parquet, json, ...) works without a dedicated branch
     here. `config.path` may contain `{{ variable }}` templating (e.g.
-    `{{ year }}`), resolved against `template_context` before reading. Any
-    `options` declared on the node (e.g. csv `header`/`delimiter`) are
-    passed through to the reader as-is.
+    `{{ year }}`), resolved against `template_context` first, then rebased
+    under the project root (see `engine.paths`) since metadata.json paths
+    are project-relative, not OS-root-relative. Any `options` declared on
+    the node (e.g. csv `header`/`delimiter`) are passed through to the
+    reader as-is.
     """
-    resolved_path = resolve_template(input_node.config.path, template_context)
+    templated_path = resolve_template(input_node.config.path, template_context)
+    resolved_path = resolve_project_path(templated_path)
 
     reader = spark.read.format(input_node.config.format)
     if input_node.options:
