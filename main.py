@@ -35,11 +35,13 @@ from __future__ import annotations
 import sys
 
 from engine.cli import CliValidationError, parse_cli_args
+from engine.describe import describe_dataflow
 from engine.executor import RunContext, resolve_all
 from engine.graph import build_graphs
 from engine.metadata_schema import MetadataError, load_metadata
 from engine.spark_session import create_spark_session
-from engine.topology import GraphCycleError
+from engine.templating import build_execution_context
+from engine.topology import GraphCycleError, topological_sort
 
 EXIT_METADATA_SCHEMA_INVALID = 14
 EXIT_GRAPH_CYCLE = 15
@@ -101,6 +103,22 @@ def main(argv: list[str] | None = None) -> int:
             f"Dataflow '{dataflow_name}': {len(graph.nodes)} nodes "
             f"({len(graph.data_edges)} data edges, {len(graph.wait_edges)} wait edges)"
         )
+
+    if args.dry_run:
+        # --dry-run: validate and print the mapped graph (nodes, transformations,
+        # final actions, execution order) without ever creating a SparkSession
+        # or executing a read/transform/write -- no existing output is touched.
+        template_context = build_execution_context(args.year)
+        print("\n--dry-run: no SparkSession created, nothing executed.\n")
+        for dataflow_name, graph in graphs.items():
+            try:
+                topo_order = topological_sort(graph)
+            except GraphCycleError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return EXIT_GRAPH_CYCLE
+            print(describe_dataflow(graph, topo_order, template_context, args.tables_base_path))
+            print()
+        return 0
 
     # A single SparkSession for the whole program, reused across every dataflow.
     spark = create_spark_session()

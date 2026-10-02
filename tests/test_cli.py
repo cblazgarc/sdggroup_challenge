@@ -43,6 +43,24 @@ def test_parse_valid_args_with_custom_tables_base_path(tmp_path):
     assert args.tables_base_path == "/custom/tables"
 
 
+def test_dry_run_defaults_to_false(tmp_path):
+    metadata_file = _write_metadata(tmp_path)
+
+    args = parse_cli_args(["--metadata", str(metadata_file), "--year", "2024"])
+
+    assert args.dry_run is False
+
+
+def test_dry_run_flag_is_parsed(tmp_path):
+    metadata_file = _write_metadata(tmp_path)
+
+    args = parse_cli_args(
+        ["--metadata", str(metadata_file), "--year", "2024", "--dry-run"]
+    )
+
+    assert args.dry_run is True
+
+
 def test_missing_metadata_file_fails_with_distinct_exit_code(tmp_path):
     missing_path = tmp_path / "does_not_exist.json"
 

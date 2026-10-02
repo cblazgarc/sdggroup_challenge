@@ -53,6 +53,7 @@ class ParsedArgs:
     metadata_path: Path
     year: int
     tables_base_path: str
+    dry_run: bool = False
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -77,6 +78,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TABLES_BASE_PATH,
         metavar="PATH",
         help=f"Base path under which type=table outputs are resolved (default: {DEFAULT_TABLES_BASE_PATH}).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Parse and map the dataflow graph(s) (nodes, transformations, "
+            "final actions, execution order) and print the result, but "
+            "never create a SparkSession or execute any read/transform/write "
+            "-- no existing output is touched."
+        ),
     )
     return parser
 
@@ -139,4 +150,9 @@ def parse_cli_args(argv: list[str] | None = None) -> ParsedArgs:
     year = _validate_year(namespace.year)
     tables_base_path = _validate_tables_base_path(namespace.tables_base_path)
 
-    return ParsedArgs(metadata_path=metadata_path, year=year, tables_base_path=tables_base_path)
+    return ParsedArgs(
+        metadata_path=metadata_path,
+        year=year,
+        tables_base_path=tables_base_path,
+        dry_run=namespace.dry_run,
+    )
