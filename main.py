@@ -14,6 +14,21 @@ Scope covered so far:
      transformations -> writer per node, with memoization across branches
      and `waits` forcing upstream writes (see engine.topology and
      engine.executor).
+
+Also exposes the point-5 checks (checks/diff_rows.py and
+checks/data_quality.py) as subcommands, so they can be run through the
+same entry point instead of as standalone scripts:
+
+    python main.py check diff-rows [--input-2024 PATH] [--input-2025 PATH] [--output PATH]
+    python main.py check data-quality [--input PATH] [--output PATH]
+
+This is a thin dispatch, deliberately NOT folded into engine.cli's
+argparse setup: `check ...` is intercepted before `parse_cli_args` ever
+runs, and each check's own `main(argv)` (already implemented and tested
+in checks/) handles its own arguments and does the actual work unchanged.
+This keeps the pipeline's CLI validation (engine.cli, and its tests)
+completely untouched -- `--metadata`/`--year` stay required only for the
+no-subcommand (pipeline) case.
 """
 from __future__ import annotations
 
@@ -28,9 +43,43 @@ from engine.topology import GraphCycleError
 
 EXIT_METADATA_SCHEMA_INVALID = 14
 EXIT_GRAPH_CYCLE = 15
+EXIT_CHECK_USAGE = 16
+
+CHECK_SUBCOMMANDS = ("diff-rows", "data-quality")
+
+
+def _dispatch_check(argv: list[str]) -> int:
+    """Route `check <subcommand> ...` to the matching checks/ script's own main()."""
+    if not argv:
+        print(
+            f"error: 'check' requires a subcommand: {', '.join(CHECK_SUBCOMMANDS)}",
+            file=sys.stderr,
+        )
+        return EXIT_CHECK_USAGE
+
+    subcommand, rest = argv[0], argv[1:]
+    if subcommand == "diff-rows":
+        from checks.diff_rows import main as diff_rows_main
+
+        return diff_rows_main(rest)
+    if subcommand == "data-quality":
+        from checks.data_quality import main as data_quality_main
+
+        return data_quality_main(rest)
+
+    print(
+        f"error: unknown check subcommand '{subcommand}' (expected: {', '.join(CHECK_SUBCOMMANDS)})",
+        file=sys.stderr,
+    )
+    return EXIT_CHECK_USAGE
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+
+    if argv and argv[0] == "check":
+        return _dispatch_check(argv[1:])
+
     try:
         args = parse_cli_args(argv)
     except CliValidationError as exc:
