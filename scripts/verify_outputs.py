@@ -1,25 +1,25 @@
 """
-Evidencia de comportamiento de las salidas (overwrite / append / merge) tras
-cada ejecucion de `main.py` -- punto 4 del enunciado.
+Evidence of the outputs' behavior (overwrite / append / merge) after each
+`main.py` run -- point 4 of the challenge statement.
 
-No forma parte del motor dirigido por metadatos ni de las comprobaciones
-obligatorias del punto 5 (esas viven en checks/ y operan sobre los CSV
-crudos). Este script es una utilidad de verificacion/evidencia: lee los 4
-destinos del dataflow "prueba-acceso" tal y como quedaron en disco/Delta
-despues de una ejecucion, e imprime lo necesario para demostrar que cada
-`save_mode` se comporto como se espera.
+Not part of the metadata-driven engine nor of the mandatory checks from
+point 5 (those live in checks/ and operate on the raw CSVs). This script is
+a verification/evidence utility: it reads the 4 destinations of the
+"prueba-acceso" dataflow exactly as they were left on disk/Delta after a
+run, and prints what's needed to demonstrate that each `save_mode` behaved
+as expected.
 
-Uso tipico (ver README):
+Typical usage (see README):
     python main.py --metadata metadata.json --year 2024
     python scripts/verify_outputs.py > docs/evidence/after_2024.log
 
     python main.py --metadata metadata.json --year 2025
     python scripts/verify_outputs.py > docs/evidence/after_2025.log
 
-Acepta los mismos argumentos de rutas que `main.py` para no hardcodear nada:
---metadata (para resolver automaticamente nombres de tabla/paths del
-dataflow "prueba-acceso") y --tables-base-path. No requiere --year: no
-ejecuta el pipeline, solo lee lo que ya quedo escrito.
+Accepts the same path arguments as `main.py` to avoid hardcoding anything:
+--metadata (to automatically resolve table names/paths of the
+"prueba-acceso" dataflow) and --tables-base-path. Does not require --year:
+it doesn't run the pipeline, it only reads what was already written.
 """
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# Permite ejecutar este script como `python scripts/verify_outputs.py` desde
-# la raiz del proyecto: sin esto, Python añade `scripts/` (no la raiz) a
-# sys.path y `import engine...` falla con ModuleNotFoundError. Mismo patron
-# que usa conftest.py para los tests.
+# Allows running this script as `python scripts/verify_outputs.py` from the
+# project root: without this, Python adds `scripts/` (not the root) to
+# sys.path and `import engine...` fails with ModuleNotFoundError. Same
+# pattern conftest.py uses for the tests.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from engine.cli import DEFAULT_TABLES_BASE_PATH
