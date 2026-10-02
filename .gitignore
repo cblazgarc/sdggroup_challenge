@@ -20,6 +20,8 @@ _delta_log/
 # la copia de trabajo local -- input renombrado + outputs generados -- bajo
 # la raíz del proyecto: engine/paths.py reancla ahí cualquier config.path de
 # metadata.json que empiece por "/", sin necesitar junction ni ruta de C:\)
+# También cubre checks/output/ (CSVs de detalle de diff_rows.py/data_quality.py,
+# regenerables en cualquier momento con `python main.py check ...`).
 output/
 data/
 
@@ -35,5 +37,13 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
-.gitkeep
-*.log
+
+# NOTA: *.log y .gitkeep NO se ignoran de forma global aquí a propósito.
+# docs/evidence/ contiene evidencia real del comportamiento overwrite/
+# append/merge (punto 4 del enunciado): after_2024.log, after_2025.log,
+# generados por scripts/verify_outputs.py. Un `*.log`/`.gitkeep` global
+# (como hubo aquí brevemente) los habría excluido del repo sin que nadie
+# lo notara -- y al ignorar también el .gitkeep, docs/evidence/ habría
+# quedado vacía y git ni la habría creado al clonar. Si en el futuro hace
+# falta ignorar un log suelto fuera de docs/evidence/, añadir esa ruta
+# concreta en vez de un patrón *.log global.

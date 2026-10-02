@@ -1,0 +1,84 @@
+:: loading settings :: url = jar:file:/C:/Users/Usuario/PyCharmMiscProject/sdggroup_challenge/env/Lib/site-packages/pyspark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+
+================================================================================
+write_last_file (type=file, save_mode=overwrite)
+================================================================================
+Ruta: C:\Users\Usuario\PyCharmMiscProject\sdggroup_challenge\data\demo\output\last
+Filas actuales: 15410
+Si 'overwrite' funciona correctamente, este numero es SOLO el de la
+ultima ejecucion (filtrada), nunca la suma de ejecuciones anteriores.
++-----------+---------------+-------+-----+----------+----------+
+|provincia  |municipio      |sexo   |total|domain    |load_date |
++-----------+---------------+-------+-----+----------+----------+
+|02 Albacete|02001 Abengibre|Hombres|28   |demography|2026-10-01|
+|02 Albacete|02001 Abengibre|Mujeres|33   |demography|2026-10-01|
+|02 Albacete|02002 Alatoz   |Hombres|13   |demography|2026-10-01|
+|02 Albacete|02002 Alatoz   |Mujeres|19   |demography|2026-10-01|
+|02 Albacete|02003 Albacete |Hombres|1.935|demography|2026-10-01|
+|02 Albacete|02003 Albacete |Mujeres|1.890|demography|2026-10-01|
+|02 Albacete|02004 Albatana |Hombres|16   |demography|2026-10-01|
+|02 Albacete|02004 Albatana |Mujeres|23   |demography|2026-10-01|
+|02 Albacete|02005 Alborea  |Hombres|16   |demography|2026-10-01|
+|02 Albacete|02005 Alborea  |Mujeres|15   |demography|2026-10-01|
++-----------+---------------+-------+-----+----------+----------+
+only showing top 10 rows
+
+
+================================================================================
+write_historic_file (type=file, save_mode=append, partition=load_date)
+================================================================================
+Ruta: C:\Users\Usuario\PyCharmMiscProject\sdggroup_challenge\data\demo\output\historic
+Filas totales acumuladas: 30820
+Particiones (load_date) presentes:
++----------+
+|load_date |
++----------+
+|2026-09-26|
+|2026-10-01|
++----------+
+
+Con 'append' el total crece entre ejecuciones y las particiones
+anteriores no se tocan (dos ejecuciones el mismo dia caen en la misma
+particion load_date -- limitacion conocida, documentada en el PPT).
+
+================================================================================
+write_delta_merge (type=table, Delta, table='demo')
+================================================================================
+Ruta: C:\Users\Usuario\PyCharmMiscProject\sdggroup_challenge\data\demo\output\tables/demo
+Filas actuales: 15410
+
+Historial de operaciones (de mas reciente a mas antigua):
++-------+-----------------------+---------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|version|timestamp              |operation|operationMetrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
++-------+-----------------------+---------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|1      |2026-10-01 22:40:45.773|MERGE    |{numTargetRowsCopied -> 0, numTargetRowsDeleted -> 0, numTargetFilesAdded -> 1, numTargetBytesAdded -> 165685, numTargetBytesRemoved -> 753145, numTargetDeletionVectorsAdded -> 0, numTargetRowsMatchedUpdated -> 15410, executionTimeMs -> 10139, numTargetRowsInserted -> 0, numTargetRowsMatchedDeleted -> 0, numTargetDeletionVectorsUpdated -> 0, scanTimeMs -> 7055, numTargetRowsUpdated -> 15410, numOutputRows -> 15410, numTargetDeletionVectorsRemoved -> 0, numTargetRowsNotMatchedBySourceUpdated -> 0, numTargetChangeFilesAdded -> 0, numSourceRows -> 15410, numTargetFilesRemoved -> 200, numTargetRowsNotMatchedBySourceDeleted -> 0, rewriteTimeMs -> 2449}|
+|0      |2026-09-26 23:22:42.263|WRITE    |{numFiles -> 200, numOutputRows -> 15410, numOutputBytes -> 753145}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
++-------+-----------------------+---------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Lectura de 'operationMetrics' por version:
+  v0 WRITE (mode=?) -> filas_escritas=15410
+  v1 MERGE -> insertadas=0, actualizadas=15410, borradas=0
+
+================================================================================
+write_delta_raw (type=table, Delta, table='raw_demo')
+================================================================================
+Ruta: C:\Users\Usuario\PyCharmMiscProject\sdggroup_challenge\data\demo\output\tables/raw_demo
+Filas actuales: 30820
+
+Historial de operaciones (de mas reciente a mas antigua):
++-------+-----------------------+---------+-------------------------------------------------------------------+
+|version|timestamp              |operation|operationMetrics                                                   |
++-------+-----------------------+---------+-------------------------------------------------------------------+
+|1      |2026-10-01 22:40:34.8  |WRITE    |{numFiles -> 200, numOutputRows -> 15410, numOutputBytes -> 753144}|
+|0      |2026-09-26 23:22:37.828|WRITE    |{numFiles -> 200, numOutputRows -> 15410, numOutputBytes -> 753145}|
++-------+-----------------------+---------+-------------------------------------------------------------------+
+
+Lectura de 'operationMetrics' por version:
+  v0 WRITE (mode=?) -> filas_escritas=15410
+  v1 WRITE (mode=?) -> filas_escritas=15410
+CORRECTO: el proceso con PID 20340 (proceso secundario de PID 20392)
+ha sido terminado.
+CORRECTO: el proceso con PID 20392 (proceso secundario de PID 18964)
+ha sido terminado.
+CORRECTO: el proceso con PID 18964 (proceso secundario de PID 18328)
+ha sido terminado.
