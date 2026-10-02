@@ -56,12 +56,12 @@ def _verify_last_file(spark, tables_base_path: str) -> None:
     try:
         df = spark.read.parquet(path)
     except Exception as exc:  # noqa: BLE001 - this is a read-only diagnostic script
-        print(f"No se pudo leer '{path}': {exc}")
+        print(f"Could not read '{path}': {exc}")
         return
-    print(f"Ruta: {path}")
-    print(f"Filas actuales: {df.count()}")
-    print("Si 'overwrite' funciona correctamente, este numero es SOLO el de la")
-    print("ultima ejecucion (filtrada), nunca la suma de ejecuciones anteriores.")
+    print(f"Path: {path}")
+    print(f"Current rows: {df.count()}")
+    print("If 'overwrite' works correctly, this number is ONLY the current")
+    print("run's (filtered), never the sum of previous runs.")
     df.show(10, truncate=False)
 
 
@@ -71,15 +71,15 @@ def _verify_historic_file(spark) -> None:
     try:
         df = spark.read.parquet(path)
     except Exception as exc:  # noqa: BLE001
-        print(f"No se pudo leer '{path}': {exc}")
+        print(f"Could not read '{path}': {exc}")
         return
-    print(f"Ruta: {path}")
-    print(f"Filas totales acumuladas: {df.count()}")
-    print("Particiones (load_date) presentes:")
+    print(f"Path: {path}")
+    print(f"Total accumulated rows: {df.count()}")
+    print("Partitions (load_date) present:")
     df.select("load_date").distinct().orderBy("load_date").show(truncate=False)
-    print("Con 'append' el total crece entre ejecuciones y las particiones")
-    print("anteriores no se tocan (dos ejecuciones el mismo dia caen en la misma")
-    print("particion load_date -- limitacion conocida, documentada en el PPT).")
+    print("With 'append' the total grows across runs and earlier partitions")
+    print("are left untouched (two runs on the same day land in the same")
+    print("load_date partition -- a known limitation, documented in the PPT).")
 
 
 def _verify_delta_table(spark, tables_base_path: str, table_name: str, label: str) -> None:
@@ -87,35 +87,35 @@ def _verify_delta_table(spark, tables_base_path: str, table_name: str, label: st
     from delta.tables import DeltaTable
 
     table_path = resolve_table_path(tables_base_path, table_name)
-    print(f"Ruta: {table_path}")
+    print(f"Path: {table_path}")
     if not DeltaTable.isDeltaTable(spark, table_path):
-        print("Todavia no existe como tabla Delta en esta ruta (no se ha ejecutado aun).")
+        print("Does not exist yet as a Delta table at this path (not run yet).")
         return
 
     delta_table = DeltaTable.forPath(spark, table_path)
     current_df = delta_table.toDF()
-    print(f"Filas actuales: {current_df.count()}")
+    print(f"Current rows: {current_df.count()}")
 
-    print("\nHistorial de operaciones (de mas reciente a mas antigua):")
+    print("\nOperation history (most recent to oldest):")
     history_df = delta_table.history().select(
         "version", "timestamp", "operation", "operationMetrics"
     )
     history_df.show(truncate=False)
 
-    print("Lectura de 'operationMetrics' por version:")
+    print("Reading 'operationMetrics' by version:")
     for row in history_df.orderBy("version").collect():
         metrics = row["operationMetrics"] or {}
         if row["operation"] == "MERGE":
             print(
                 f"  v{row['version']} MERGE -> "
-                f"insertadas={metrics.get('numTargetRowsInserted', '?')}, "
-                f"actualizadas={metrics.get('numTargetRowsUpdated', '?')}, "
-                f"borradas={metrics.get('numTargetRowsDeleted', '?')}"
+                f"inserted={metrics.get('numTargetRowsInserted', '?')}, "
+                f"updated={metrics.get('numTargetRowsUpdated', '?')}, "
+                f"deleted={metrics.get('numTargetRowsDeleted', '?')}"
             )
         elif row["operation"] == "WRITE":
             print(
                 f"  v{row['version']} WRITE (mode={metrics.get('mode', '?')}) -> "
-                f"filas_escritas={metrics.get('numOutputRows', '?')}"
+                f"rows_written={metrics.get('numOutputRows', '?')}"
             )
         else:
             print(f"  v{row['version']} {row['operation']} -> {metrics}")
@@ -123,13 +123,13 @@ def _verify_delta_table(spark, tables_base_path: str, table_name: str, label: st
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Lee los 4 destinos del dataflow 'prueba-acceso' y muestra "
-        "evidencia de overwrite/append/merge a partir de lo que ya hay en disco."
+        description="Reads the 4 destinations of the 'prueba-acceso' dataflow and shows "
+        "evidence of overwrite/append/merge from what's already on disk."
     )
     parser.add_argument(
         "--tables-base-path",
         default=DEFAULT_TABLES_BASE_PATH,
-        help="Debe coincidir con el usado al ejecutar main.py (default: %(default)s)",
+        help="Must match the one used when running main.py (default: %(default)s)",
     )
     args = parser.parse_args(argv)
 

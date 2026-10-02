@@ -104,17 +104,17 @@ def summarize(municipio_count: int, issues_df: DataFrame) -> str:
     missing_category = issue_counts.get("missing_category", 0)
     total_issues = sum_mismatch + missing_category
     lines = [
-        f"Municipios/filas-clave comprobados (provincia+municipio): {municipio_count}",
-        f"Incumplimientos 'Ambos sexos' != 'Hombres' + 'Mujeres': {sum_mismatch}",
-        f"Categorias de sexo ausentes para algun municipio: {missing_category}",
-        f"Total de problemas detectados: {total_issues}",
+        f"Municipios/key rows checked (provincia+municipio): {municipio_count}",
+        f"Violations of 'Ambos sexos' != 'Hombres' + 'Mujeres': {sum_mismatch}",
+        f"Sexo categories missing for some municipio: {missing_category}",
+        f"Total issues detected: {total_issues}",
     ]
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Comprobacion (b): calidad de dato -- 'Ambos sexos' == 'Hombres' + 'Mujeres'"
+        description="Check (b): data quality -- 'Ambos sexos' == 'Hombres' + 'Mujeres'"
     )
     parser.add_argument("--input", default=str(DEFAULT_INPUT_PATH))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
@@ -131,10 +131,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if issue_count > 0:
             issues_df.coalesce(1).write.mode("overwrite").option("header", "true").csv(args.output)
-            print(f"\nDetalle completo ({issue_count} filas con problemas) escrito en: {args.output}")
+            print(f"\nFull detail ({issue_count} rows with issues) written to: {args.output}")
             return EXIT_QUALITY_ISSUES
 
-        print("\nSin incumplimientos detectados.")
+        print("\nNo violations detected.")
         return EXIT_OK
     finally:
         spark.stop()

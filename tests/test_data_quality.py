@@ -96,7 +96,7 @@ def test_summarize_counts_issue_types(spark, tmp_path):
 
     summary = summarize(2, issues_df)
 
-    assert "comprobados (provincia+municipio): 2" in summary
+    assert "checked (provincia+municipio): 2" in summary
     assert "'Ambos sexos' != 'Hombres' + 'Mujeres': 1" in summary
-    assert "ausentes para algun municipio: 1" in summary
-    assert "Total de problemas detectados: 2" in summary
+    assert "missing for some municipio: 1" in summary
+    assert "Total issues detected: 2" in summary

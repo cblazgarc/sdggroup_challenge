@@ -88,22 +88,22 @@ def summarize(old_df: DataFrame, new_df: DataFrame, diffs_df: DataFrame) -> str:
     total_old = old_df.agg(F.sum("total")).first()[0] or 0
     total_new = new_df.agg(F.sum("total")).first()[0] or 0
     lines = [
-        f"Filas en 2024: {old_count}",
-        f"Filas en 2025: {new_count}",
-        f"Filas sin cambios: {old_count - changed - removed}",
-        f"Filas cambiadas (mismo municipio+sexo, total distinto): {changed}",
-        f"Filas nuevas en 2025: {added}",
-        f"Filas eliminadas respecto a 2024: {removed}",
-        f"Poblacion total 2024: {total_old}",
-        f"Poblacion total 2025: {total_new}",
-        f"Variacion neta: {total_new - total_old:+d}",
+        f"Rows in 2024: {old_count}",
+        f"Rows in 2025: {new_count}",
+        f"Unchanged rows: {old_count - changed - removed}",
+        f"Changed rows (same municipio+sexo, different total): {changed}",
+        f"New rows in 2025: {added}",
+        f"Rows removed vs. 2024: {removed}",
+        f"Total population 2024: {total_old}",
+        f"Total population 2025: {total_new}",
+        f"Net change: {total_new - total_old:+d}",
     ]
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Comprobacion (a): filas que cambian de poblacion2024.csv a poblacion2025.csv"
+        description="Check (a): rows that change from poblacion2024.csv to poblacion2025.csv"
     )
     parser.add_argument("--input-2024", default=str(DEFAULT_2024_PATH))
     parser.add_argument("--input-2025", default=str(DEFAULT_2025_PATH))
@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print(summarize(old_df, new_df, diffs_df))
         diffs_df.coalesce(1).write.mode("overwrite").option("header", "true").csv(args.output)
-        print(f"\nDetalle completo ({diffs_df.count()} filas) escrito en: {args.output}")
+        print(f"\nFull detail ({diffs_df.count()} rows) written to: {args.output}")
     finally:
         spark.stop()
     return 0

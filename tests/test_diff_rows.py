@@ -73,14 +73,14 @@ def test_summarize_reports_counts_and_population_totals(spark, tmp_path):
 
     summary = summarize(old_df, new_df, diffs_df)
 
-    assert "Filas en 2024: 2" in summary
-    assert "Filas en 2025: 2" in summary
-    assert "Filas cambiadas (mismo municipio+sexo, total distinto): 1" in summary
-    assert "Filas nuevas en 2025: 1" in summary
-    assert "Filas eliminadas respecto a 2024: 1" in summary
-    assert "Poblacion total 2024: 15" in summary
-    assert "Poblacion total 2025: 19" in summary
-    assert "Variacion neta: +4" in summary
+    assert "Rows in 2024: 2" in summary
+    assert "Rows in 2025: 2" in summary
+    assert "Changed rows (same municipio+sexo, different total): 1" in summary
+    assert "New rows in 2025: 1" in summary
+    assert "Rows removed vs. 2024: 1" in summary
+    assert "Total population 2024: 15" in summary
+    assert "Total population 2025: 19" in summary
+    assert "Net change: +4" in summary
 
 
 def test_load_population_df_parses_thousands_separator_and_bom(spark, tmp_path):
