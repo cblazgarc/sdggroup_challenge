@@ -3,6 +3,12 @@ Human-readable description of a mapped dataflow graph: its nodes grouped
 by kind (inputs / transformations / final-action outputs) and the exact
 order the engine would execute them in.
 
+Also renders, per node, the literal Spark instruction a real run would
+build and execute for it (`spark.read...`, `df.filter(...)`,
+`df.write...`, `DeltaTable...merge(...)`) -- rendered as a *string*, by
+mirroring the exact call shape of engine.readers/engine.transformations/
+engine.writers, never by actually calling them.
+
 Used by `--dry-run` (see main.py): everything here is derived purely from
 the already-parsed metadata/graph plus string-level path resolution
 (engine.paths / engine.templating) -- no SparkSession is created and no
@@ -14,6 +20,12 @@ just to print a plan -- which is also why it does NOT import
 it would make `--dry-run` require pyspark to be installed just to print
 a plan. `_resolve_table_path` below duplicates that one-line string
 computation to avoid the transitive pyspark dependency.
+
+Keeping the rendered instructions in sync with the real dispatch code
+(engine.readers.read_input / engine.transformations.apply_transformation /
+engine.writers.write_output) is a manual invariant: if one of those
+changes the Spark call it makes, the matching `_spark_call_*` function
+below must be updated to match.
 """
 from __future__ import annotations
 
@@ -44,6 +56,16 @@ def _resolve_table_path(tables_base_path: str, table_name: str) -> str:
     return f"{resolved_base_path.rstrip('/')}/{table_name}"
 
 
+def _spark_call_input(node: FileInputNode, resolved_path: str) -> str:
+    """Mirrors engine.readers.read_input's exact call shape."""
+    call = f'spark.read.format("{node.config.format}")'
+    if node.options:
+        options = ", ".join(f'{key}="{value}"' for key, value in node.options.items())
+        call += f".options({options})"
+    call += f'.load("{resolved_path}")'
+    return call
+
+
 def _describe_input(node: FileInputNode, waits: tuple[str, ...], template_context: dict[str, Any]) -> list[str]:
     templated_path = resolve_template(node.config.path, template_context)
     resolved_path = resolve_project_path(templated_path)
@@ -59,7 +81,27 @@ def _describe_input(node: FileInputNode, waits: tuple[str, ...], template_contex
         lines.append(f"      options         = {node.options}")
     if waits:
         lines.append(f"      waits for       = {', '.join(waits)}  (must finish writing before this is read)")
+    lines.append(f"      spark           = {_spark_call_input(node, resolved_path)}")
     return lines
+
+
+def _spark_call_transformation(node, input_name: str) -> str:
+    """Mirrors engine.transformations.apply_transformation's exact call shape."""
+    if isinstance(node, FilterTransformation):
+        return f'{input_name}.filter("{node.config.filter}")'
+
+    if isinstance(node, AddFieldsTransformation):
+        call = input_name
+        for field_spec in node.config.fields:
+            call += f'.withColumn("{field_spec.name}", F.expr("{field_spec.expression}"))'
+        return call
+
+    if isinstance(node, GroupTransformation):
+        group_by = ", ".join(f'"{field}"' for field in node.config.group_fields)
+        aggregations = ", ".join(f'F.expr("{aggregation}")' for aggregation in node.config.aggregations)
+        return f"{input_name}.groupBy({group_by}).agg({aggregations})"
+
+    return "?"  # pragma: no cover - exhaustive over the discriminated union
 
 
 def _describe_transformation(node, data_inputs: tuple[str, ...]) -> list[str]:
@@ -81,6 +123,45 @@ def _describe_transformation(node, data_inputs: tuple[str, ...]) -> list[str]:
     return [
         f"  - {node.name} [transformation/{node.type}] input={input_name}",
         f"      {detail}",
+        f"      spark             = {_spark_call_transformation(node, input_name)}",
+    ]
+
+
+def _spark_call_file_output(node: FileOutputNode, input_name: str, resolved_path: str) -> list[str]:
+    """Mirrors engine.writers._write_file's exact call shape (one chained statement)."""
+    call = f'{input_name}.write.format("{node.config.format}").mode("{node.config.save_mode}")'
+    if node.config.partition:
+        call += f'.partitionBy("{node.config.partition}")'
+    call += f'.save("{resolved_path}")'
+    return [call]
+
+
+def _spark_call_table_output(node: TableOutputNode, input_name: str, table_path: str) -> list[str]:
+    """
+    Mirrors engine.writers._write_table's exact call shape.
+
+    save_mode="append" is a single statement. save_mode="merge" is a real
+    runtime branch in engine.writers (bootstrap overwrite on the very
+    first run, `DeltaTable.merge()` afterwards) decided by
+    `DeltaTable.isDeltaTable(spark, table_path)` -- a check against the
+    actual filesystem/Delta log that `--dry-run` cannot perform without
+    creating a SparkSession. Both branches are shown rather than guessed.
+    """
+    if node.config.save_mode == "append":
+        return [f'{input_name}.write.format("delta").mode("append").save("{table_path}")']
+
+    # save_mode == "merge" (the only other value TableOutputConfig allows).
+    merge_condition = " AND ".join(f"target.`{key}` = source.`{key}`" for key in node.config.primary_key)
+    return [
+        f'if DeltaTable.isDeltaTable(spark, "{table_path}"):',
+        f'    DeltaTable.forPath(spark, "{table_path}").alias("target") \\',
+        f'        .merge({input_name}.alias("source"), "{merge_condition}") \\',
+        f"        .whenMatchedUpdateAll() \\",
+        f"        .whenNotMatchedInsertAll() \\",
+        f"        .execute()",
+        f"else:",
+        f'    {input_name}.write.format("delta").mode("overwrite").save("{table_path}")',
+        f"    # (bootstrap: no Delta table exists yet at this path)",
     ]
 
 
@@ -97,6 +178,8 @@ def _describe_output(node, data_inputs: tuple[str, ...], tables_base_path: str) 
         ]
         if node.config.partition:
             lines.append(f"      partition  = {node.config.partition}")
+        lines.append("      spark      =")
+        lines.extend(f"        {call_line}" for call_line in _spark_call_file_output(node, input_name, resolved_path))
         return lines
 
     if isinstance(node, TableOutputNode):
@@ -108,6 +191,8 @@ def _describe_output(node, data_inputs: tuple[str, ...], tables_base_path: str) 
         ]
         if node.config.primary_key:
             lines.append(f"      primary_key        = {node.config.primary_key}")
+        lines.append("      spark              =")
+        lines.extend(f"        {call_line}" for call_line in _spark_call_table_output(node, input_name, table_path))
         return lines
 
     return [f"  - {node.name} [output/?]"]  # pragma: no cover - exhaustive over the discriminated union

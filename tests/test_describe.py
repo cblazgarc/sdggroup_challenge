@@ -77,6 +77,41 @@ def test_describe_dataflow_shows_the_wait_dependency():
     assert "waits for       = write_last_file" in report
 
 
+def test_describe_dataflow_renders_the_spark_instruction_per_node():
+    """
+    Carlos asked specifically to see the final Spark instruction each node
+    would build and execute (not just its config) -- one rendered call per
+    node, mirroring engine.readers/engine.transformations/engine.writers'
+    exact call shape (never by actually calling them: engine.describe
+    stays Spark-free, see its module docstring).
+    """
+    report = _describe_prueba_acceso(tables_base_path="/data/demo/output/tables")
+
+    # inputs: spark.read...
+    assert 'spark.read.format("csv").options(header="true", delimiter=";").load(' in report
+    assert 'spark.read.format("parquet").load(' in report
+
+    # transformations: chained on the producer node's name
+    assert 'demo_data.withColumn("domain", F.expr("\'demography\'"))' in report
+    assert 'new_fields.filter("sexo != \'Ambos sexos\' and municipio != \'N/A\'")' in report
+    assert 'parquet_data.groupBy("provincia", "municipio", "sexo").agg(F.expr("sum(total) as total_ambos_sexos"))' in report
+
+    # file outputs: df.write...
+    assert 'filter_rows.write.format("parquet").mode("append").partitionBy("load_date").save(' in report
+    assert 'filter_rows.write.format("parquet").mode("overwrite").save(' in report
+
+    # table output, append: plain delta write
+    assert 'group_by_fields.write.format("delta").mode("append").save(' in report
+
+    # table output, merge: both real-run branches shown (bootstrap vs. merge),
+    # since deciding between them needs a live Delta check --dry-run can't do
+    assert "if DeltaTable.isDeltaTable(spark," in report
+    assert '.merge(group_by_fields.alias("source"), "target.`provincia` = source.`provincia` AND target.`municipio` = source.`municipio` AND target.`sexo` = source.`sexo`")' in report
+    assert ".whenMatchedUpdateAll()" in report
+    assert ".whenNotMatchedInsertAll()" in report
+    assert 'group_by_fields.write.format("delta").mode("overwrite").save(' in report
+
+
 @pytest.mark.parametrize("year", [2024, 2025])
 def test_dry_run_never_touches_existing_output_files_or_creates_a_spark_session(year, monkeypatch):
     """
