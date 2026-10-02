@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
     args = parser.parse_args(argv)
 
-    spark = create_spark_session(app_name="sdggroup_challenge-data_quality")
+    spark = create_spark_session(app_name="sdggroup_challenge-data_quality", with_delta=False)
     try:
         df = load_population_df(spark, args.input)
         municipio_count = df.select(*KEY_COLUMNS).distinct().count()

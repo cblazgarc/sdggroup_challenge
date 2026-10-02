@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
     args = parser.parse_args(argv)
 
-    spark = create_spark_session(app_name="sdggroup_challenge-diff_rows")
+    spark = create_spark_session(app_name="sdggroup_challenge-diff_rows", with_delta=False)
     try:
         old_df = load_population_df(spark, args.input_2024)
         new_df = load_population_df(spark, args.input_2025)
