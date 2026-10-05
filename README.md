@@ -25,7 +25,7 @@ sdggroup_challenge/
 │   ├── readers.py                   # dispatch de lectura por `type`/`format` (spark.read...)
 │   ├── transformations.py           # dispatch filter / add_fields / group
 │   ├── writers.py                    # dispatch file+save_mode / table+save_mode (incluye merge vs. bootstrap Delta)
-│   ├── executor.py                    # orquestador: resuelve y ejecuta cada dataflow (memoización, `waits`, fan-out con cache)
+│   ├── executor.py                    # orquestador: resuelve y ejecuta cada dataflow (memorización, `waits`, fan-out con cache)
 │   └── describe.py                     # --dry-run: describe el grafo mapeado + la instrucción Spark de cada nodo, sin Spark
 ├── checks/                     # punto 5 del enunciado, independientes del motor
 │   ├── diff_rows.py             # comprobación (a): diff de filas 2024 -> 2025 sobre los CSV crudos
@@ -46,18 +46,18 @@ sdggroup_challenge/
 │   └── test_data_quality.py                # checks/data_quality.py
 └── docs/
     ├── evidence/                 # salida real de verify_outputs.py (after_2024.log, after_2025.log) -- evidencia, no se regenera en CI
-    └── arquitectura.pptx          # (pendiente) punto 6: documento de arquitectura
+    └── arquitectura_detallada.pdf  # punto 6: documento de arquitectura (acompaña a la presentación, deck separado)
 ```
 
 ## Estado actual
 
-Todos los puntos del enunciado están implementados y verificados salvo el documento de arquitectura (punto 6, `.pptx`), que queda como único entregable pendiente.
+Todos los puntos del enunciado están implementados, verificados y documentados.
 
 **Punto 1 -- CLI** (`engine/cli.py`, `main.py`): `argparse` con `--metadata` (ruta a `metadata.json`), `--year` (4 dígitos, resuelve `{{ year }}`), `--tables-base-path` (por defecto `/data/demo/output/tables`) y `--dry-run`. Cada fallo de validación propio (fichero inexistente/no legible, año inválido, base path en blanco) devuelve un `exit_code` distinto vía `CliValidationError`; los flags mal formados los gestiona `argparse` (exit code 2).
 
 **Punto 2 -- metadata.json y DAG** (`engine/metadata_schema.py`, `engine/graph.py`, `engine/topology.py`): modelos Pydantic discriminados por `type` para `inputs` (file), `transformations` (filter / add_fields / group) y `outputs` (file / table); validación estructural completa (secciones no vacías, nombres únicos, integridad referencial de `input`/`waits`). `build_graph(s)` construye el DAG en memoria separando aristas de datos y de espera; `topological_sort` detecta ciclos sobre el grafo combinado y devuelve el orden global de ejecución.
 
-**Punto 3 -- ejecución** (`engine/executor.py`, `engine/readers.py`, `engine/transformations.py`, `engine/writers.py`): una única `SparkSession` para todo el programa; cada dataflow se resuelve desde sus outputs "hoja" hacia atrás, memoizando el DataFrame de cada nodo intermedio (y cacheándolo si alimenta a más de un consumidor) y forzando (`waits`) la escritura real de un output antes de que el input que depende de él se lea. Soporta `type=file` (cualquier formato que entienda `DataFrameReader`/`DataFrameWriter`) y `type=table` (siempre Delta, por path, sin metastore): `save_mode=append` escribe directo; `save_mode=merge` usa `DeltaTable.merge()` por `primary_key`, salvo en la primera ejecución (tabla Delta inexistente en ese path), donde hace un `overwrite` de bootstrap.
+**Punto 3 -- ejecución** (`engine/executor.py`, `engine/readers.py`, `engine/transformations.py`, `engine/writers.py`): una única `SparkSession` para todo el programa; cada dataflow se resuelve desde sus outputs "hoja" hacia atrás, memorizando el DataFrame de cada nodo intermedio (y cacheándolo si alimenta a más de un consumidor) y forzando (`waits`) la escritura real de un output antes de que el input que depende de él se lea. Soporta `type=file` (cualquier formato que entienda `DataFrameReader`/`DataFrameWriter`) y `type=table` (siempre Delta, por path, sin metastore): `save_mode=append` escribe directo; `save_mode=merge` usa `DeltaTable.merge()` por `primary_key`, salvo en la primera ejecución (tabla Delta inexistente en ese path), donde hace un `overwrite` de bootstrap.
 
 **Punto 4 -- overwrite / append / merge demostrado con 2024 y 2025**: ejecutado con `data2024.csv` y, después, con `data2025.csv` contra el mismo `metadata.json`. `scripts/verify_outputs.py` captura evidencia objetiva vía `DeltaTable.history()` (operationMetrics: filas insertadas/actualizadas, numOutputRows) comparando ambas ejecuciones, en `docs/evidence/after_2024.log` y `after_2025.log`. Proyecto comprimido tras cada ejecución (`sdggroup_challenge_input_2024_carlos_blazquez`, `sdgroup_challenge_input_2025_carlos_blazquez`).
 
@@ -70,7 +70,7 @@ Todos los puntos del enunciado están implementados y verificados salvo el docum
 
 **Tests** (`tests/`, 64 en total, `pytest`): cubren `engine.cli` (incluido `--dry-run`), `engine.metadata_schema`, `engine.graph`, `engine.topology`, `engine.paths`, `engine.describe` (más un end-to-end que verifica que `--dry-run` nunca crea una `SparkSession` ni toca `mtime`/tamaño de ningún fichero de salida existente), el dispatch de `main.py check <subcomando>`, y ambas comprobaciones del punto 5 (con fixtures que escriben un CSV real en `tmp_path` y lo leen vía la función de carga ya probada, en vez de `spark.createDataFrame()` -- necesario en Python 3.14, donde el `cloudpickle` que trae `pyspark==3.5.1` no sabe serializar el cierre que esa llamada necesita).
 
-Pendiente: documento de arquitectura (`docs/arquitectura.pptx`, punto 6) -- incluirá, además de la arquitectura del código entregado, la arquitectura extendida con orquestación multi-proceso (Airflow) y CI/CD, fuera del alcance del código de la prueba.
+**Punto 6 -- documento de arquitectura**: dos entregables. Una presentación con los puntos más importantes (deck de diapositivas) y un documento detallado, `docs/arquitectura_detallada.pdf`, con la explicación de cada punto -- incluyendo el resultado real de los 3 tipos de comando `main.py` (ejecución estándar, `--dry-run`, `check`) -- y la arquitectura extendida sobre GCP (Dataproc Serverless, GCS, BigQuery) con Cloud Composer (Airflow) como orquestador y el pipeline de CI/CD correspondiente, sin IaC (fuera del alcance de este documento, según pide el propio enunciado).
 
 ## Uso
 

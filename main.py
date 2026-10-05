@@ -11,7 +11,7 @@ Scope covered so far:
      path-based Delta Lake (see engine.spark_session).
   4. For each dataflow: validate it (cycle detection + global topological
      sort over the combined data+wait graph) and execute it — reader ->
-     transformations -> writer per node, with memoization across branches
+     transformations -> writer per node, with memorization across branches
      and `waits` forcing upstream writes (see engine.topology and
      engine.executor).
 

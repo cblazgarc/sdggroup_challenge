@@ -12,7 +12,7 @@ For each dataflow:
      `waits` edge crossing branches means one branch's output must finish
      before another branch's input can be read.
   4. Resolve each branch recursively, from the output down to its root
-     input(s), memoizing every intermediate DataFrame so a node that feeds
+     input(s), memorizing every intermediate DataFrame so a node that feeds
      more than one output is read/transformed only once; that DataFrame is
      `.cache()`d right before it fans out, matching Spark's lazy semantics.
   5. Resolving an input node forces (`waits`) the referenced node(s) to
@@ -54,7 +54,7 @@ class DataflowResolver:
     def __init__(self, graph: DataflowGraph, run_context: RunContext):
         self._graph = graph
         self._run_context = run_context
-        # Memoized lazy DataFrames for input/transformation nodes.
+        # Memorized lazy DataFrames for input/transformation nodes.
         self._dataframe_cache: dict[str, DataFrame] = {}
         # Output nodes whose write action has already run (idempotent re-entry).
         self._executed_outputs: set[str] = set()
